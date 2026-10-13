@@ -10,21 +10,41 @@
   body { margin: 0; min-height: 100%; color: #f2f2f2;
     font-family: -apple-system, Helvetica, Arial, sans-serif;
     background-repeat: no-repeat; background-size: cover; }
-  #wrap { text-align: center; padding: 5vh 2vw 3vh 2vw; }
-  #heure { font-size: 17vw; font-weight: 200; letter-spacing: 0.02em; line-height: 1; }
+  #wrap { text-align: center; padding: 4vh 2vw 3vh 2vw; }
+  #heure { font-size: 19vw; font-weight: 200; letter-spacing: 0.02em; line-height: 1; }
   #date { font-size: 4vw; margin-top: 1.5vh; text-transform: capitalize; color: var(--accent); }
-  #villes { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 6vh; }
-  .ville { width: 29%; min-width: 230px; margin: 1vh 1%; padding: 2.2vh 1vw;
+  #saint { font-size: 2.6vw; margin-top: 1vh; opacity: 0.85; }
+  #cartes { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 4vh; }
+  .carte { width: 36%; min-width: 260px; margin: 1vh 1%; padding: 2vh 1vw;
     background: rgba(255, 255, 255, 0.12); border-radius: 22px; }
   .nom { font-size: 2.6vw; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); }
   .icone { font-size: 6vw; margin-top: 1vh; line-height: 1.1; }
-  .temp { font-size: 6.5vw; font-weight: 300; }
-  .desc { font-size: 2.4vw; margin-top: 0.5vh; opacity: 0.9; }
-  .minmax { font-size: 2.2vw; margin-top: 1vh; opacity: 0.75; }
-  .hloc { font-size: 2.2vw; margin-top: 0.8vh; color: var(--accent); }
-  #maj { font-size: 1.8vw; margin-top: 4vh; opacity: 0.45; }
+  .temp { font-size: 8vw; font-weight: 300; }
+  .desc { font-size: 2.1vw; margin-top: 0.5vh; opacity: 0.9; }
+  .minmax { font-size: 1.9vw; margin-top: 1vh; opacity: 0.75; }
+  .pluie { font-size: 1.9vw; margin-top: 0.8vh; opacity: 0.75; }
+  #infos { font-size: 2.4vw; margin-top: 2vh; opacity: 0.9; }
+  #pollen { font-size: 2.2vw; margin-top: 1vh; opacity: 0.8; }
+  #maj { font-size: 1.8vw; margin-top: 3vh; opacity: 0.45; }
+  @media (orientation: landscape) {
+    #wrap { padding: 2vh 2vw 1vh 2vw; }
+    #heure { font-size: 22vh; }
+    #date { font-size: 4.5vh; margin-top: 0.5vh; }
+    #saint { font-size: 3.6vh; margin-top: 0.5vh; }
+    #cartes { margin-top: 2vh; }
+    .carte { padding: 1.5vh 1vw; margin: 0.5vh 1%; }
+    .nom { font-size: 3vh; }
+    .icone { font-size: 7vh; margin-top: 0.5vh; }
+    .temp { font-size: 11vh; }
+    .desc { font-size: 3vh; }
+    .minmax { font-size: 2.6vh; margin-top: 0.5vh; }
+    .pluie { font-size: 2.6vh; margin-top: 0.5vh; }
+    #infos { font-size: 3.4vh; margin-top: 1.5vh; }
+    #pollen { font-size: 3vh; margin-top: 0.5vh; }
+    #maj { font-size: 2.2vh; margin-top: 1vh; }
+  }
   body.nuit { color: #8c8c8c; }
-  body.nuit .ville { background: rgba(255, 255, 255, 0.04); }
+  body.nuit .carte { background: rgba(255, 255, 255, 0.04); }
   body.nuit .icone { opacity: 0.55; }
 </style>
 </head>
@@ -32,51 +52,81 @@
 <div id="wrap">
   <div id="heure">--:--</div>
   <div id="date"></div>
-  <div id="villes"><div class="ville"><div class="nom">Chargement...</div></div></div>
+  <div id="saint"></div>
+  <div id="cartes"><div class="carte"><div class="nom">Chargement...</div></div></div>
+  <div id="infos"></div>
+  <div id="pollen"></div>
   <div id="maj"></div>
 </div>
 <script>
 // ===== Configuration (à adapter) =====
-var ACCENT = "#5ab0ff";   // couleur d'accent (bleu clair)
-var VILLES = [
-  { nom: "Saint-Étienne", lat: 45.44, lon: 4.39, heureLocale: false },
-  { nom: "Annonay",       lat: 45.24, lon: 4.67, heureLocale: false },
-  { nom: "Guadeloupe",    lat: 16.24, lon: -61.53, heureLocale: true }
-];
+var ACCENT = "#5ab0ff";
+var LIEU = "Maclas";
+var LATITUDE = 45.39;    // valeur approximative
+var LONGITUDE = 4.74;    // valeur approximative
 var RAFRAICHIR_METEO_MIN = 15;
 // =====================================
 
 var JOURS = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
 var MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août",
             "septembre","octobre","novembre","décembre"];
-var OFFSETS = [];   // décalage horaire (secondes) de chaque ville, rempli par la météo
+
+// Calendrier des saints (29 février inclus), séparés par "|"
+var SAINTS = [
+  "Jour de l'An|Basile|Geneviève|Odilon|Édouard|Mélaine|Raymond|Lucien|Alix|Guillaume|Paulin|Tatiana|Yvette|Nina|Rémi|Marcel|Roseline|Prisca|Marius|Sébastien|Agnès|Vincent|Barnard|François de Sales|Paul|Paule|Angèle|Thomas d'Aquin|Gildas|Martine|Marcelle",
+  "Ella|Présentation du Seigneur|Blaise|Véronique|Agathe|Gaston|Eugénie|Jacqueline|Apolline|Arnaud|Notre-Dame de Lourdes|Félix|Béatrice|Valentin|Claude|Julienne|Alexis|Bernadette|Gabin|Aimée|Pierre Damien|Isabelle|Lazare|Modeste|Roméo|Nestor|Honorine|Romain|Auguste",
+  "Aubin|Charles le Bon|Guénolé|Casimir|Olive|Colette|Félicité|Jean de Dieu|Françoise|Vivien|Rosine|Justine|Rodrigue|Mathilde|Louise|Bénédicte|Patrick|Cyrille|Joseph|Herbert|Clémence|Léa|Victorien|Karine|Annonciation|Larissa|Habib|Gontran|Gwladys|Amédée|Benjamin",
+  "Hugues|Sandrine|Richard|Isidore|Irène|Marcellin|Jean-Baptiste de la Salle|Julie|Gautier|Fulbert|Stanislas|Jules|Ida|Maxime|Paterne|Benoît-Joseph|Anicet|Parfait|Emma|Odette|Anselme|Alexandre|Georges|Fidèle|Marc|Alida|Zita|Valérie|Catherine de Sienne|Robert",
+  "Fête du Travail|Boris|Philippe et Jacques|Sylvain|Judith|Prudence|Gisèle|Désiré|Pacôme|Solange|Estelle|Achille|Rolande|Matthias|Denise|Honoré|Pascal|Éric|Yves|Bernardin|Constantin|Émile|Didier|Donatien|Sophie|Bérenger|Augustin de Cantorbéry|Germain|Aymar|Ferdinand|Visitation",
+  "Justin|Blandine|Kévin|Clotilde|Igor|Norbert|Gilbert|Médard|Diane|Landry|Barnabé|Guy|Antoine de Padoue|Élisée|Germaine|Jean-François Régis|Hervé|Léonce|Romuald|Silvère|Rodolphe|Alban|Audrey|Jean-Baptiste|Prosper|Anthelme|Fernand|Irénée|Pierre et Paul|Martial",
+  "Thierry|Martinien|Thomas|Florent|Antoine|Mariette|Raoul|Thibaut|Amandine|Ulrich|Benoît|Olivier|Henri et Joël|Fête nationale|Donald|Notre-Dame du Mont-Carmel|Charlotte|Frédéric|Arsène|Marina|Victor|Marie-Madeleine|Brigitte|Christine|Jacques|Anne et Joachim|Nathalie|Samson|Marthe|Juliette|Ignace de Loyola",
+  "Alphonse|Julien Eymard|Lydie|Jean-Marie Vianney|Abel|Transfiguration|Gaétan|Dominique|Amour|Laurent|Claire|Clarisse|Hippolyte|Évrard|Assomption|Armel|Hyacinthe|Hélène|Jean Eudes|Bernard|Christophe|Fabrice|Rose de Lima|Barthélemy|Louis|Natacha|Monique|Augustin|Sabine|Fiacre|Aristide",
+  "Gilles|Ingrid|Grégoire|Rosalie|Raïssa|Bertrand|Reine|Nativité de Marie|Alain|Inès|Adelphe|Apollinaire|Aimé|Croix glorieuse|Roland|Édith|Renaud|Nadège|Émilie|Davy|Matthieu|Maurice|Constant|Thècle|Hermann|Côme et Damien|Vincent de Paul|Venceslas|Michel|Jérôme",
+  "Thérèse de l'Enfant-Jésus|Léger|Gérard|François d'Assise|Fleur|Bruno|Serge|Pélagie|Denis|Ghislain|Firmin|Wilfried|Géraud|Juste|Thérèse d'Avila|Edwige|Baudouin|Luc|René|Adeline|Céline|Élodie|Jean de Capistran|Florentin|Crépin|Dimitri|Émeline|Simon et Jude|Narcisse|Bienvenue|Quentin",
+  "Toussaint|Fête des Défunts|Hubert|Charles|Sylvie|Bertille|Carine|Geoffroy|Théodore|Léon|Martin|Christian|Brice|Sidoine|Albert|Marguerite|Élisabeth|Aude|Tanguy|Edmond|Présentation de Marie|Cécile|Clément|Flora|Catherine|Delphine|Séverin|Jacques de la Marche|Saturnin|André",
+  "Florence|Viviane|François-Xavier|Barbara|Gérald|Nicolas|Ambroise|Immaculée Conception|Pierre Fourier|Romaric|Daniel|Jeanne de Chantal|Lucie|Odile|Ninon|Alice|Gaël|Gatien|Urbain|Théophile|Pierre Canisius|Françoise-Xavière|Armand|Adèle|Noël|Étienne|Jean|Innocents|David|Roger|Sylvestre"
+];
+
+// Jours qui ne sont pas un prénom : affichés sans "C'est la fête à"
+var FETES = "|Jour de l'An|Présentation du Seigneur|Notre-Dame de Lourdes|Annonciation|Fête du Travail|Visitation|Fête nationale|Notre-Dame du Mont-Carmel|Transfiguration|Assomption|Nativité de Marie|Croix glorieuse|Toussaint|Fête des Défunts|Présentation de Marie|Immaculée Conception|Innocents|";
+
+// Fonds selon la météo (jour, soir, et aube/crépuscule pour le ciel clair)
+var PALETTES = {
+  clair:      { jour: ["#1d4f91", "#5aa9e6"], soir: ["#0b1230", "#2a2150"],
+                aube: ["#243b6b", "#e08a5a"], crepuscule: ["#3a2a5c", "#e0703a"] },
+  nuageux:    { jour: ["#3b4a5f", "#8196ad"], soir: ["#12161f", "#2b3140"] },
+  pluie:      { jour: ["#27384d", "#566b82"], soir: ["#0c1118", "#1f2a38"] },
+  neige:      { jour: ["#4a5f7a", "#8ea5bf"], soir: ["#1b2433", "#3d4b61"] },
+  orage:      { jour: ["#2a2540", "#5a4f73"], soir: ["#0d0b17", "#241f36"] },
+  brouillard: { jour: ["#59626d", "#a2abb5"], soir: ["#16191d", "#343a41"] }
+};
+var CATEGORIE = "clair";
+var SEP = "\u00A0\u00A0\u00B7\u00A0\u00A0";   // séparateur entre min, max et pluie
 
 document.documentElement.style.setProperty("--accent", ACCENT);
 
 function deuxChiffres(n) { return (n < 10 ? "0" : "") + n; }
 
-function majFond(h) {
-  var c1, c2, nuit = false;
-  if (h >= 23 || h < 7) { c1 = "#000000"; c2 = "#0a0f1c"; nuit = true; }
-  else if (h < 9) { c1 = "#243b6b"; c2 = "#e08a5a"; }
-  else if (h < 17) { c1 = "#1d4f91"; c2 = "#5aa9e6"; }
-  else if (h < 20) { c1 = "#3a2a5c"; c2 = "#e0703a"; }
-  else { c1 = "#0b1230"; c2 = "#2a2150"; }
-  document.body.style.backgroundImage = "linear-gradient(180deg, " + c1 + ", " + c2 + ")";
-  document.body.className = nuit ? "nuit" : "";
+function categorie(c) {
+  if (c <= 1) { return "clair"; }
+  if (c <= 3) { return "nuageux"; }
+  if (c <= 48) { return "brouillard"; }
+  if (c <= 67) { return "pluie"; }
+  if (c <= 77) { return "neige"; }
+  if (c <= 82) { return "pluie"; }
+  if (c <= 86) { return "neige"; }
+  return "orage";
 }
 
-function majHeuresLocales() {
-  var now = new Date();
-  var utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-  var k, el, loc;
-  for (k = 0; k < VILLES.length; k++) {
-    el = document.getElementById("hloc" + k);
-    if (el && OFFSETS[k] !== undefined) {
-      loc = new Date(utcMs + OFFSETS[k] * 1000);
-      el.innerHTML = "Heure locale " + deuxChiffres(loc.getHours()) + ":" + deuxChiffres(loc.getMinutes());
-    }
-  }
+function majFond(h) {
+  var pal = PALETTES[CATEGORIE], c, nuit = false;
+  if (h >= 23 || h < 7) { c = ["#000000", "#0a0f1c"]; nuit = true; }
+  else if (h >= 20) { c = pal.soir; }
+  else if (CATEGORIE === "clair" && h < 9) { c = pal.aube; }
+  else if (CATEGORIE === "clair" && h >= 17) { c = pal.crepuscule; }
+  else { c = pal.jour; }
+  document.body.style.backgroundImage = "linear-gradient(180deg, " + c[0] + ", " + c[1] + ")";
+  document.body.className = nuit ? "nuit" : "";
 }
 
 function majHeure() {
@@ -85,8 +135,13 @@ function majHeure() {
     deuxChiffres(d.getHours()) + ":" + deuxChiffres(d.getMinutes());
   document.getElementById("date").innerHTML =
     JOURS[d.getDay()] + " " + d.getDate() + " " + MOIS[d.getMonth()] + " " + d.getFullYear();
+  var saint = SAINTS[d.getMonth()].split("|")[d.getDate() - 1];
+  var texte = "";
+  if (saint) {
+    texte = (FETES.indexOf("|" + saint + "|") >= 0) ? "Aujourd’hui : " + saint : "C’est la fête à " + saint;
+  }
+  document.getElementById("saint").innerHTML = texte;
   majFond(d.getHours());
-  majHeuresLocales();
 }
 
 function decrireCode(c) {
@@ -117,19 +172,18 @@ function icone(c, jour) {
 }
 
 function afficherErreur(texte) {
-  document.getElementById("villes").innerHTML =
-    '<div class="ville"><div class="nom">' + texte + '</div></div>';
+  document.getElementById("cartes").innerHTML =
+    '<div class="carte"><div class="nom">' + texte + '</div></div>';
 }
 
+function heureDe(iso) { return iso.substring(11, 16); }
+
 function majMeteo() {
-  var lats = [], lons = [], i;
-  for (i = 0; i < VILLES.length; i++) {
-    lats.push(VILLES[i].lat);
-    lons.push(VILLES[i].lon);
-  }
-  var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lats.join(",") +
-            "&longitude=" + lons.join(",") +
-            "&current_weather=true&daily=temperature_2m_max,temperature_2m_min&timezone=auto";
+  var url = "https://api.open-meteo.com/v1/forecast?latitude=" + LATITUDE +
+            "&longitude=" + LONGITUDE + "&current_weather=true" +
+            "&daily=weathercode,temperature_2m_max,temperature_2m_min," +
+            "precipitation_probability_max,windspeed_10m_max,sunrise,sunset" +
+            "&forecast_days=2&timezone=Europe%2FParis";
   var xhr = new XMLHttpRequest();
   xhr.open("GET", url, true);
   xhr.onreadystatechange = function () {
@@ -137,25 +191,33 @@ function majMeteo() {
     if (xhr.status === 200) {
       try {
         var data = JSON.parse(xhr.responseText);
-        if (!(data instanceof Array)) { data = [data]; }
-        var html = "", k, cw, jour, tmax, tmin;
-        for (k = 0; k < VILLES.length; k++) {
-          cw = data[k].current_weather;
-          jour = (cw.is_day !== 0);
-          tmax = Math.round(data[k].daily.temperature_2m_max[0]);
-          tmin = Math.round(data[k].daily.temperature_2m_min[0]);
-          OFFSETS[k] = data[k].utc_offset_seconds;
-          html += '<div class="ville">' +
-                  '<div class="nom">' + VILLES[k].nom + '</div>' +
-                  '<div class="icone">' + icone(cw.weathercode, jour) + '</div>' +
-                  '<div class="temp">' + Math.round(cw.temperature) + ' °C</div>' +
-                  '<div class="desc">' + decrireCode(cw.weathercode) + '</div>' +
-                  '<div class="minmax">min ' + tmin + '° / max ' + tmax + '°</div>' +
-                  (VILLES[k].heureLocale ? '<div class="hloc" id="hloc' + k + '"></div>' : '') +
-                  '</div>';
-        }
-        document.getElementById("villes").innerHTML = html;
-        majHeuresLocales();
+        var cw = data.current_weather, dj = data.daily;
+        var jour = (cw.is_day !== 0);
+        var html =
+          '<div class="carte">' +
+            '<div class="nom">Aujourd\u2019hui</div>' +
+            '<div class="icone">' + icone(cw.weathercode, jour) + '</div>' +
+            '<div class="temp">' + Math.round(cw.temperature) + ' °C</div>' +
+            '<div class="desc">' + decrireCode(cw.weathercode) + '</div>' +
+            '<div class="minmax">min ' + Math.round(dj.temperature_2m_min[0]) +
+              '°' + SEP + 'max ' + Math.round(dj.temperature_2m_max[0]) + '°' + SEP +
+            'Pluie ' + dj.precipitation_probability_max[0] + ' %</div>' +
+          '</div>' +
+          '<div class="carte">' +
+            '<div class="nom">Demain</div>' +
+            '<div class="icone">' + icone(dj.weathercode[1], true) + '</div>' +
+            '<div class="temp">' + Math.round(dj.temperature_2m_max[1]) + ' °C</div>' +
+            '<div class="desc">' + decrireCode(dj.weathercode[1]) + '</div>' +
+            '<div class="minmax">min ' + Math.round(dj.temperature_2m_min[1]) +
+              '°' + SEP + 'max ' + Math.round(dj.temperature_2m_max[1]) + '°' + SEP +
+            'Pluie ' + dj.precipitation_probability_max[1] + ' %</div>' +
+          '</div>';
+        document.getElementById("cartes").innerHTML = html;
+        document.getElementById("infos").innerHTML =
+          "Vent " + Math.round(cw.windspeed) + " km/h  \u00B7  Lever " + heureDe(dj.sunrise[0]) +
+          "  \u00B7  Coucher " + heureDe(dj.sunset[0]);
+        CATEGORIE = categorie(cw.weathercode);
+        majFond(new Date().getHours());
         var d = new Date();
         document.getElementById("maj").innerHTML =
           "Météo mise à jour à " + deuxChiffres(d.getHours()) + ":" + deuxChiffres(d.getMinutes());
@@ -169,10 +231,56 @@ function majMeteo() {
   xhr.send();
 }
 
+var POLLENS = [
+  ["alder_pollen", "aulne"], ["birch_pollen", "bouleau"], ["grass_pollen", "graminées"],
+  ["mugwort_pollen", "armoise"], ["olive_pollen", "olivier"], ["ragweed_pollen", "ambroisie"]
+];
+
+function niveauPollen(v) {
+  if (v < 20) { return "faible"; }
+  if (v < 80) { return "modéré"; }
+  if (v < 200) { return "élevé"; }
+  return "très élevé";
+}
+
+function majPollen() {
+  var champs = [], i;
+  for (i = 0; i < POLLENS.length; i++) { champs.push(POLLENS[i][0]); }
+  var url = "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=" + LATITUDE +
+            "&longitude=" + LONGITUDE + "&current=" + champs.join(",") +
+            "&timezone=Europe%2FParis";
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", url, true);
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState !== 4) { return; }
+    var el = document.getElementById("pollen");
+    if (xhr.status === 200) {
+      try {
+        var cur = JSON.parse(xhr.responseText).current;
+        var max = -1, nom = "", k, v;
+        for (k = 0; k < POLLENS.length; k++) {
+          v = cur[POLLENS[k][0]];
+          if (v !== null && v !== undefined && v > max) { max = v; nom = POLLENS[k][1]; }
+        }
+        if (max < 0) { el.innerHTML = "Pollens : pas de relevé en cette saison"; }
+        else if (max < 1) { el.innerHTML = "Pollens : aucun"; }
+        else { el.innerHTML = "Pollens : " + niveauPollen(max) + " (" + nom + ")"; }
+      } catch (e) {
+        el.innerHTML = "Pollens : données illisibles";
+      }
+    } else {
+      el.innerHTML = "Pollens : indisponibles";
+    }
+  };
+  xhr.send();
+}
+
 majHeure();
 setInterval(majHeure, 1000);
 majMeteo();
+majPollen();
 setInterval(majMeteo, RAFRAICHIR_METEO_MIN * 60 * 1000);
+setInterval(majPollen, 60 * 60 * 1000);
 </script>
 </body>
 </html>
