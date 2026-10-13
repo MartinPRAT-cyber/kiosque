@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Kiosque</title>
+<style>
+  html { height: 100%; background: #000; }
+  body { margin: 0; min-height: 100%; color: #f2f2f2;
+    font-family: -apple-system, Helvetica, Arial, sans-serif;
+    background-repeat: no-repeat; background-size: cover; }
+  #wrap { text-align: center; padding: 5vh 2vw 3vh 2vw; }
+  #heure { font-size: 17vw; font-weight: 200; letter-spacing: 0.02em; line-height: 1; }
+  #date { font-size: 4vw; margin-top: 1.5vh; text-transform: capitalize; color: var(--accent); }
+  #villes { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 6vh; }
+  .ville { width: 29%; min-width: 230px; margin: 1vh 1%; padding: 2.2vh 1vw;
+    background: rgba(255, 255, 255, 0.12); border-radius: 22px; }
+  .nom { font-size: 2.6vw; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); }
+  .icone { font-size: 6vw; margin-top: 1vh; line-height: 1.1; }
+  .temp { font-size: 6.5vw; font-weight: 300; }
+  .desc { font-size: 2.4vw; margin-top: 0.5vh; opacity: 0.9; }
+  .minmax { font-size: 2.2vw; margin-top: 1vh; opacity: 0.75; }
+  .hloc { font-size: 2.2vw; margin-top: 0.8vh; color: var(--accent); }
+  #maj { font-size: 1.8vw; margin-top: 4vh; opacity: 0.45; }
+  body.nuit { color: #8c8c8c; }
+  body.nuit .ville { background: rgba(255, 255, 255, 0.04); }
+  body.nuit .icone { opacity: 0.55; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="heure">--:--</div>
+  <div id="date"></div>
+  <div id="villes"><div class="ville"><div class="nom">Chargement...</div></div></div>
+  <div id="maj"></div>
+</div>
+<script>
+// ===== Configuration (à adapter) =====
+var ACCENT = "#5ab0ff";   // couleur d'accent (bleu clair)
+var VILLES = [
+  { nom: "Saint-Étienne", lat: 45.44, lon: 4.39, heureLocale: false },
+  { nom: "Annonay",       lat: 45.24, lon: 4.67, heureLocale: false },
+  { nom: "Guadeloupe",    lat: 16.24, lon: -61.53, heureLocale: true }
+];
+var RAFRAICHIR_METEO_MIN = 15;
+// =====================================
+
+var JOURS = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
+var MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août",
+            "septembre","octobre","novembre","décembre"];
+var OFFSETS = [];   // décalage horaire (secondes) de chaque ville, rempli par la météo
+
+document.documentElement.style.setProperty("--accent", ACCENT);
+
+function deuxChiffres(n) { return (n < 10 ? "0" : "") + n; }
+
+function majFond(h) {
+  var c1, c2, nuit = false;
+  if (h >= 23 || h < 7) { c1 = "#000000"; c2 = "#0a0f1c"; nuit = true; }
+  else if (h < 9) { c1 = "#243b6b"; c2 = "#e08a5a"; }
+  else if (h < 17) { c1 = "#1d4f91"; c2 = "#5aa9e6"; }
+  else if (h < 20) { c1 = "#3a2a5c"; c2 = "#e0703a"; }
+  else { c1 = "#0b1230"; c2 = "#2a2150"; }
+  document.body.style.backgroundImage = "linear-gradient(180deg, " + c1 + ", " + c2 + ")";
+  document.body.className = nuit ? "nuit" : "";
+}
+
+function majHeuresLocales() {
+  var now = new Date();
+  var utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  var k, el, loc;
+  for (k = 0; k < VILLES.length; k++) {
+    el = document.getElementById("hloc" + k);
+    if (el && OFFSETS[k] !== undefined) {
+      loc = new Date(utcMs + OFFSETS[k] * 1000);
+      el.innerHTML = "Heure locale " + deuxChiffres(loc.getHours()) + ":" + deuxChiffres(loc.getMinutes());
+    }
+  }
+}
+
+function majHeure() {
+  var d = new Date();
+  document.getElementById("heure").innerHTML =
+    deuxChiffres(d.getHours()) + ":" + deuxChiffres(d.getMinutes());
+  document.getElementById("date").innerHTML =
+    JOURS[d.getDay()] + " " + d.getDate() + " " + MOIS[d.getMonth()] + " " + d.getFullYear();
+  majFond(d.getHours());
+  majHeuresLocales();
+}
+
+function decrireCode(c) {
+  if (c === 0) { return "Ciel dégagé"; }
+  if (c === 1) { return "Plutôt dégagé"; }
+  if (c === 2) { return "Partiellement nuageux"; }
+  if (c === 3) { return "Couvert"; }
+  if (c <= 48) { return "Brouillard"; }
+  if (c <= 57) { return "Bruine"; }
+  if (c <= 67) { return "Pluie"; }
+  if (c <= 77) { return "Neige"; }
+  if (c <= 82) { return "Averses"; }
+  if (c <= 86) { return "Averses de neige"; }
+  return "Orage";
+}
+
+function icone(c, jour) {
+  if (c === 0) { return jour ? "\u2600\uFE0F" : "\uD83C\uDF19"; }
+  if (c <= 2) { return jour ? "\u26C5" : "\u2601\uFE0F"; }
+  if (c === 3) { return "\u2601\uFE0F"; }
+  if (c <= 48) { return "\uD83C\uDF2B\uFE0F"; }
+  if (c <= 57) { return "\uD83C\uDF26\uFE0F"; }
+  if (c <= 67) { return "\uD83C\uDF27\uFE0F"; }
+  if (c <= 77) { return "\u2744\uFE0F"; }
+  if (c <= 82) { return "\uD83C\uDF26\uFE0F"; }
+  if (c <= 86) { return "\uD83C\uDF28\uFE0F"; }
+  return "\u26C8\uFE0F";
+}
+
+function afficherErreur(texte) {
+  document.getElementById("villes").innerHTML =
+    '<div class="ville"><div class="nom">' + texte + '</div></div>';
+}
+
+function majMeteo() {
+  var lats = [], lons = [], i;
+  for (i = 0; i < VILLES.length; i++) {
+    lats.push(VILLES[i].lat);
+    lons.push(VILLES[i].lon);
+  }
+  var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lats.join(",") +
+            "&longitude=" + lons.join(",") +
+            "&current_weather=true&daily=temperature_2m_max,temperature_2m_min&timezone=auto";
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", url, true);
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState !== 4) { return; }
+    if (xhr.status === 200) {
+      try {
+        var data = JSON.parse(xhr.responseText);
+        if (!(data instanceof Array)) { data = [data]; }
+        var html = "", k, cw, jour, tmax, tmin;
+        for (k = 0; k < VILLES.length; k++) {
+          cw = data[k].current_weather;
+          jour = (cw.is_day !== 0);
+          tmax = Math.round(data[k].daily.temperature_2m_max[0]);
+          tmin = Math.round(data[k].daily.temperature_2m_min[0]);
+          OFFSETS[k] = data[k].utc_offset_seconds;
+          html += '<div class="ville">' +
+                  '<div class="nom">' + VILLES[k].nom + '</div>' +
+                  '<div class="icone">' + icone(cw.weathercode, jour) + '</div>' +
+                  '<div class="temp">' + Math.round(cw.temperature) + ' °C</div>' +
+                  '<div class="desc">' + decrireCode(cw.weathercode) + '</div>' +
+                  '<div class="minmax">min ' + tmin + '° / max ' + tmax + '°</div>' +
+                  (VILLES[k].heureLocale ? '<div class="hloc" id="hloc' + k + '"></div>' : '') +
+                  '</div>';
+        }
+        document.getElementById("villes").innerHTML = html;
+        majHeuresLocales();
+        var d = new Date();
+        document.getElementById("maj").innerHTML =
+          "Météo mise à jour à " + deuxChiffres(d.getHours()) + ":" + deuxChiffres(d.getMinutes());
+      } catch (e) {
+        afficherErreur("Météo : données illisibles");
+      }
+    } else {
+      afficherErreur("Météo indisponible (code " + xhr.status + ")");
+    }
+  };
+  xhr.send();
+}
+
+majHeure();
+setInterval(majHeure, 1000);
+majMeteo();
+setInterval(majMeteo, RAFRAICHIR_METEO_MIN * 60 * 1000);
+</script>
+</body>
+</html>
